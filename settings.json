@@ -5,6 +5,6 @@
     },
     "workers": {
         "value": 2,
-        "description": "Max number of threads to run in parallel. If no idea, leave as it is. Or take advice from developer."
+        "description": "Max. no of threads to run in concurrent. If no idea, leave as it is. Or take advice from developer."
     }
 }
