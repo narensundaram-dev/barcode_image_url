@@ -11,7 +11,7 @@ sessioninstaller==0.0.0
 six==1.15.0
 soupsieve==2.0.1
 toml==0.10.1
-urllib3==1.13.1
+urllib3==1.24.2
 virtkey==0.63.0
 virtualenv==15.0.1
 wrapt==1.12.1
