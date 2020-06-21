@@ -12,3 +12,7 @@
 ## For help:
 
 - `python3.6 barcode_img_url.py -h`
+
+## Output:
+
+- Stored in `data/<website-name>.xlsx`
