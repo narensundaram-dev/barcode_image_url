@@ -129,7 +129,8 @@ def get_image_url(args, barcode):
 
 def get(args):
     futures = []
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    workers = settings["workers"]["value"]
+    with ThreadPoolExecutor(max_workers=workers) as executor:
         with open(file_barcode_pending) as f:
             for line in f.readlines():
                 barcode = line.strip()
