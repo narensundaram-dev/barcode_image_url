@@ -1,8 +1,10 @@
 import os
+import json
 import shutil
 import logging
 import argparse
 import traceback
+from datetime import datetime as dt
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
@@ -47,17 +49,23 @@ resumer = False
 data = []
 
 
+with open("settings.json", "r") as f:
+    settings = json.load(f)
+
+
 def scrape_blookup(chrome, url):
     chrome.get(url)
-    return "https://img.com"
+    return "NotImplemented"
 
 
 def scrape_bspider(chrome, url):
     chrome.get(url)
     try:
-        WebDriverWait(chrome, 10).until(EC.presence_of_element_located((By.CLASS_NAME, 'thumb-image')))
+        wait = settings["page_load_timeout"]["value"]
+        WebDriverWait(chrome, wait).until(EC.presence_of_element_located((By.CLASS_NAME, 'thumb-image')))
         soup = BeautifulSoup(chrome.page_source, "html.parser")
         image_url = soup.find("div", class_="thumb-image").find("img").attrs["src"]
+
     except Exception as e:
         log.info("Error on getting the image_url from {}. Skipped".format(url))
         image_url = "skipped"
@@ -67,12 +75,32 @@ def scrape_bspider(chrome, url):
 
 def scrape_upcdb(chrome, url):
     chrome.get(url)
-    return "https://img.com"
+    try:
+        wait = settings["page_load_timeout"]["value"]
+        WebDriverWait(chrome, wait).until(EC.presence_of_element_located((By.CLASS_NAME, 'main-img')))
+        soup = BeautifulSoup(chrome.page_source, "html.parser")
+        image_url = soup.find("img", class_="product").attrs["src"]
+
+    except Exception as e:
+        log.info("Error on getting the image_url from {}. Skipped".format(url))
+        image_url = "skipped"
+
+    return image_url
 
 
 def scrape_upczilla(chrome, url):
     chrome.get(url)
-    return "https://img.com"
+    try:
+        wait = settings["page_load_timeout"]["value"]
+        WebDriverWait(chrome, wait).until(EC.presence_of_element_located((By.CLASS_NAME, 'imgdiv')))
+        soup = BeautifulSoup(chrome.page_source, "html.parser")
+        image_url = soup.find("div", class_="imgdiv").find("img").attrs["src"]
+
+    except Exception as e:
+        log.info("Error on getting the image_url from {}. Skipped".format(url))
+        image_url = "skipped"
+
+    return image_url
 
 
 def get_image_url(args, barcode):
@@ -115,8 +143,8 @@ def get(args):
         barcodes_done.append(barcode)
 
 
-def save():
-    fp = os.path.join(os.getcwd(), dir_data, "data.xlsx")
+def save(args):
+    fp = os.path.join(os.getcwd(), dir_data, "{}.xlsx".format(args.website))
     df = pd.DataFrame(data)
     df.to_excel(fp, index=False)
     log.info("Fetched data has been stored in {} file".format(fp))
@@ -125,30 +153,35 @@ def save():
 def setup():
     shutil.rmtree(dir_data, ignore_errors=True)
     os.makedirs(dir_data)
+
     if not os.path.exists(file_barcodes):
         log.error("Error: " + file_barcodes + " doesn't exist. Please have the file in the script directory.")
+
     if not os.path.exists(file_barcode_pending):
         log.info(file_barcode_pending + " not found. Will continue to read all the barcodes in " + file_barcodes)
         shutil.copyfile(file_barcodes, file_barcode_pending)
     else:
         log.info(file_barcode_pending + " found! Resuming with the existing barcodes... Please ensure you took up the backup.")
-        log.info("To continue, enter 'yes': ")
+        print("To continue, enter 'yes': ")
         user_input = input().lower().strip()
         global resumer
         resumer = True
         if user_input != "yes":
-            log.info("User confirmation failed... Exited.")
+            print("User confirmation failed... Exited.")
             exit(1)
 
 
 def cleanup():
     shutil.rmtree(dir_data, ignore_errors=True)
+    if os.path.exists(file_barcode_pending):
+        os.remove(file_barcode_pending)
 
 
 def get_args():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('-w', "--website", type=str, choices=(UPCZILLA, BLOOKUP, BSPIDER, UPCDB), required=True)
+    arg_parser.add_argument('-w', "--website", type=str, choices=(UPCZILLA, BSPIDER, UPCDB), required=True)
     arg_parser.add_argument('-d', "--driver_path", type=str, help="Enter the chromedriver path", required=True)
+    arg_parser.add_argument('--cleanup', "--cleanup", action="store_true", default=False)
     arg_parser.add_argument('-log-level', '--log_level', type=str, choices=("INFO", "DEBUG"),
                             default="INFO", help='Where do you want to post the info?')
     return arg_parser.parse_args()
@@ -156,12 +189,18 @@ def get_args():
 
 def main():
     args = get_args()
+    if args.cleanup:
+        cleanup()
+
     setup()
     get(args)
-    save()
+    save(args)
 
 
 if __name__ == "__main__":
+    start = dt.now()
+    log.info("Script starts at: {}".format(start.strftime("%d-%m-%Y %H:%M:%S %p")))
+
     try:
         main()
     except Exception as e:
@@ -169,7 +208,7 @@ if __name__ == "__main__":
         traceback.print_exc()
         exit(1)
     finally:
-        log.info("\n\nBacking up the pending barcodes to be done ...\n\n")
+        log.info("Backing up the pending barcodes to be done ...")
 
         fp_barcode = file_barcodes if not resumer else file_barcode_pending
         with open(fp_barcode, "r") as f:
@@ -179,3 +218,8 @@ if __name__ == "__main__":
         with open(file_barcode_pending, "w+") as fp:
             barcodes_pending = set(barcodes) - set(barcodes_done)
             fp.write("\n".join(list(barcodes_pending)))
+
+    end = dt.now()
+    log.info("Script ends at: {}".format(end.strftime("%d-%m-%Y %H:%M:%S %p")))
+    elapsed = round(((end - start).seconds / 60), 4)
+    log.info("Time Elapsed: {} minutes".format(elapsed))

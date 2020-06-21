@@ -1,0 +1,10 @@
+{
+    "page_load_timeout": {
+        "value": 10,
+        "description": "Await for loading the web page (In seconds)."
+    },
+    "worker_count": {
+        "value": 2,
+        "description": "Max number of threads to run in parallel. If no idea, leave as it is. Or take advice from developer."
+    }
+}
