@@ -5,7 +5,7 @@ lxml==3.5.0
 numpy==1.18.5
 pandas==1.0.5
 pexpect==4.0.1
-requests==2.9.1
+requests==2.20.0
 selenium==3.141.0
 sessioninstaller==0.0.0
 six==1.15.0
